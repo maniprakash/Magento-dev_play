@@ -34,13 +34,34 @@ try {
 
         $fileRow = fgetcsv($readFile);
 
-        $categoryName = trim($fileRow[3]); //D
+        $secondLevelCategoryName = trim($fileRow[1]); //B - 2nd Level
+        $fourthLevelCategoryName = trim($fileRow[3]); //D
         $m3SourceValue = $fileRow[24]; //Y - Concatenated
+
+        // Filter 2nd level category
+        $categoryFilterFactory = $objectManager->create('Magento\Catalog\Model\ResourceModel\Category\CollectionFactory');
+        $categoryFilterCollection = $categoryFilterFactory->create();
+        $categoryFilterCollection->addAttributeToSelect('*')
+            ->addAttributeToFilter('name', $secondLevelCategoryName)
+            ->addAttributeToFilter('level', 3)
+            ->load();
+
+        $parent_id = null;
+        if(!empty($categoryFilterCollection) && count($categoryFilterCollection) == 1) {
+            foreach ($categoryFilterCollection as $res) {
+                $parent_id = $res['entity_id'];
+            }
+        }
+
+        if(empty($parent_id)) {
+            continue;
+        }
 
         $categoryFactory = $objectManager->create('Magento\Catalog\Model\ResourceModel\Category\CollectionFactory');
         $collection = $categoryFactory->create();
         $collection->addAttributeToSelect('*')
-            ->addAttributeToFilter('name', $categoryName)->load();
+            ->addAttributeToFilter('name', $fourthLevelCategoryName)
+            ->addAttributeToFilter('parent_id', $parent_id)->load();
 
         if(!empty($collection) && count($collection) > 0) {
 
@@ -48,20 +69,20 @@ try {
                 $categoryId = $result['entity_id'];
                 $name = $result['name'];
 
-                if((trim($name) == $categoryName) && !empty($m3SourceValue)) {
+                if((trim($name) == $fourthLevelCategoryName) && !empty($m3SourceValue)) {
                     $array['_1587130248610_'.$j] = array('m3_category_source_value' => $m3SourceValue, 'magento_categories' => $categoryId);
 
-                    $log = ' Category Mapping Success -- '. $categoryName . " -- ".$i;
+                    $log = ' Category Mapping Success -- '. $fourthLevelCategoryName . " -- ".$i;
                     $lsLogger->info($log);
 
                     $j++;
                 } else {
-                    $log = ' Category Name Mismatch -- '. $categoryName . " -- ".$i;
+                    $log = ' Category Name Mismatch -- '. $fourthLevelCategoryName . " -- ".$i;
                     $lsLogger->info($log);
                 }
             }
         } else {
-            $log = ' Category Not Found -- '. $categoryName . " -- ".$i;
+            $log = ' Category Not Found -- '. $fourthLevelCategoryName . " -- ".$i;
             $lsLogger->info($log);
         }
 
